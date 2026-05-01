@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -23,7 +26,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.smartcampus2"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 36                 // ✅ Must match compileSdk
         versionCode = flutter.versionCode
         versionName = flutter.versionName

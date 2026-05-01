@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'core/di/injection.dart';
 import 'core/l10n/app_localization.dart';
@@ -10,7 +10,11 @@ import 'features/settings/presentation/bloc/settings_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
+  }
   await configureDependencies();
+
   runApp(const SmartCampusApp());
 }
 
@@ -31,7 +35,7 @@ class SmartCampusApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
 
             // ── Theme ──────────────────────────────────────────────────────
-            theme:     AppTheme.light,
+            theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: state.themeMode,
 

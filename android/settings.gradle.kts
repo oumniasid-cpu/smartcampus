@@ -20,6 +20,9 @@ pluginManagement {
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.9.1" apply false       // ✅ Required by androidx deps
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services") version("4.3.15") apply false
+    // END: FlutterFire Configuration
     id("org.jetbrains.kotlin.android") version "2.1.0" apply false  // ✅ Compatible with AGP 8.9.1
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }

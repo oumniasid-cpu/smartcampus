@@ -1,3 +1,5 @@
+// ignore_for_file: file_names
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,33 +7,49 @@ import '../../../../core/l10n/app_localization.dart';
 import '../bloc/settings_bloc.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  SettingsPage — fully theme-aware (dark mode) + localized
+//  SettingsPage — fully theme-aware (dark mode) + localized + Firebase
 // ═══════════════════════════════════════════════════════════════════════════
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final cs  = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      //theme surface — adapts to dark mode
       backgroundColor: cs.surface,
       appBar: _buildAppBar(context, cs, l10n),
-      body: BlocBuilder<SettingsBloc, SettingsState>(
+      body: BlocConsumer<SettingsBloc, SettingsState>(
+        // MODIFIÉ : BlocConsumer au lieu de BlocBuilder
+        // → listener gère la navigation, builder gère l'UI
+        listener: (context, state) {
+          // NOUVEAU : quand l'utilisateur se déconnecte, on navigue vers Login
+          if (state.isSignedOut) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/login', // adapte selon ta route
+              (route) => false,
+            );
+          }
+        },
         builder: (context, state) {
-          final isDark  = state.themeMode == ThemeMode.dark;
+          final isDark = state.themeMode == ThemeMode.dark;
           final notifOn = state.notificationsEnabled;
 
           return Directionality(
-            // RTL support for Arabic
             textDirection: l10n.textDirection,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
                 // ── Profile header ────────────────────────────────────────
-                _ProfileHeader(l10n: l10n),
+                // MODIFIÉ : on passe maintenant les données réelles du state
+                _ProfileHeader(
+                  l10n: l10n,
+                  displayName: state.displayName,
+                  role: state.role,
+                  badges: state.badges,
+                  isLoading: state.isLoadingProfile,
+                ),
                 const SizedBox(height: 20),
 
                 // ── Preferences ───────────────────────────────────────────
@@ -44,18 +62,19 @@ class SettingsPage extends StatelessWidget {
                       subtitle: l10n.darkThemeDesc,
                       value: isDark,
                       onChanged: (v) => context.read<SettingsBloc>().add(
-                            SettingsThemeChanged(
-                                v ? ThemeMode.dark : ThemeMode.light),
-                          ),
+                        SettingsThemeChanged(
+                          v ? ThemeMode.dark : ThemeMode.light,
+                        ),
+                      ),
                     ),
                     _Divider(),
                     _ToggleRow(
                       title: l10n.notifications,
                       subtitle: l10n.notificationsDesc,
                       value: notifOn,
-                      onChanged: (_) => context
-                          .read<SettingsBloc>()
-                          .add(SettingsNotificationsToggled()),
+                      onChanged: (_) => context.read<SettingsBloc>().add(
+                        SettingsNotificationsToggled(),
+                      ),
                     ),
                   ],
                 ),
@@ -80,9 +99,9 @@ class SettingsPage extends StatelessWidget {
                       l10n: l10n,
                       onChanged: (code) {
                         if (code != null) {
-                          context
-                              .read<SettingsBloc>()
-                              .add(SettingsLanguageChanged(code));
+                          context.read<SettingsBloc>().add(
+                            SettingsLanguageChanged(code),
+                          );
                         }
                       },
                     ),
@@ -105,6 +124,7 @@ class SettingsPage extends StatelessWidget {
                       icon: Icons.logout_rounded,
                       label: l10n.signOut,
                       isDestructive: true,
+                      // MODIFIÉ : ouvre le dialog de confirmation
                       onTap: () => _confirmSignOut(context, l10n),
                     ),
                   ],
@@ -115,9 +135,10 @@ class SettingsPage extends StatelessWidget {
                   child: Text(
                     l10n.version,
                     style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w500),
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -135,7 +156,6 @@ class SettingsPage extends StatelessWidget {
     AppLocalizations l10n,
   ) {
     return AppBar(
-      // ✅ FIX: theme primary — adapts to dark mode
       backgroundColor: cs.primary,
       elevation: 0,
       titleSpacing: 16,
@@ -148,8 +168,7 @@ class SettingsPage extends StatelessWidget {
               color: cs.onPrimary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.school_outlined,
-                color: cs.onPrimary, size: 18),
+            child: Icon(Icons.school_outlined, color: cs.onPrimary, size: 18),
           ),
           const SizedBox(width: 10),
           Text(
@@ -166,8 +185,11 @@ class SettingsPage extends StatelessWidget {
         Stack(
           children: [
             IconButton(
-              icon: Icon(Icons.notifications_none_rounded,
-                  color: cs.onPrimary, size: 26),
+              icon: Icon(
+                Icons.notifications_none_rounded,
+                color: cs.onPrimary,
+                size: 26,
+              ),
               onPressed: () {},
             ),
             Positioned(
@@ -177,7 +199,9 @@ class SettingsPage extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                    color: Color(0xFFFF4D4D), shape: BoxShape.circle),
+                  color: Color(0xFFFF4D4D),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ],
@@ -187,34 +211,46 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  // ── Sign-out dialog ──────────────────────────────────────────────────────
+  // ── Sign-out dialog — MODIFIÉ : appelle maintenant le BLoC ──────────────
   void _confirmSignOut(BuildContext context, AppLocalizations l10n) {
     final cs = Theme.of(context).colorScheme;
+    // On garde une référence au BLoC AVANT d'ouvrir le dialog
+    // (le context du dialog est différent)
+    final bloc = context.read<SettingsBloc>();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        // ✅ FIX: theme surface
         backgroundColor: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: Text(l10n.signOutConfirmTitle,
-            style: TextStyle(
-                fontWeight: FontWeight.w800, color: cs.onSurface)),
-        content: Text(l10n.signOutConfirmBody,
-            style: TextStyle(color: cs.onSurfaceVariant)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          l10n.signOutConfirmTitle,
+          style: TextStyle(fontWeight: FontWeight.w800, color: cs.onSurface),
+        ),
+        content: Text(
+          l10n.signOutConfirmBody,
+          style: TextStyle(color: cs.onSurfaceVariant),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel,
-                style: TextStyle(color: cs.onSurfaceVariant)),
+            child: Text(
+              l10n.cancel,
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context); // ferme le dialog
+              // NOUVEAU : envoie l'event de déconnexion au BLoC
+              bloc.add(SettingsSignOutRequested());
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.error,
               foregroundColor: cs.onError,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
               elevation: 0,
             ),
             child: Text(l10n.signOut),
@@ -226,11 +262,23 @@ class SettingsPage extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Profile Header — theme-aware
+//  Profile Header — MODIFIÉ : reçoit les vraies données au lieu du texte dur
 // ═══════════════════════════════════════════════════════════════════════════
 class _ProfileHeader extends StatelessWidget {
   final AppLocalizations l10n;
-  const _ProfileHeader({required this.l10n});
+  // NOUVEAU : paramètres venant de Firestore via le BLoC
+  final String displayName;
+  final String role;
+  final List<String> badges;
+  final bool isLoading;
+
+  const _ProfileHeader({
+    required this.l10n,
+    required this.displayName,
+    required this.role,
+    required this.badges,
+    required this.isLoading,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +286,6 @@ class _ProfileHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      // ✅ FIX: surfaceContainerLowest = white in light, dark card in dark
       color: cs.surfaceContainerLowest,
       padding: const EdgeInsets.fromLTRB(16, 28, 16, 28),
       child: Column(
@@ -251,7 +298,6 @@ class _ProfileHeader extends StatelessWidget {
                 height: 110,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
-                  // ✅ FIX: primaryContainer adapts to dark
                   color: cs.primaryContainer,
                   boxShadow: [
                     BoxShadow(
@@ -263,15 +309,18 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: Icon(Icons.person_rounded,
-                      size: 60, color: cs.onPrimaryContainer.withOpacity(0.5)),
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 60,
+                    color: cs.onPrimaryContainer.withOpacity(0.5),
+                  ),
                 ),
               ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: () {}, // à implémenter : modifier la photo
                   child: Container(
                     width: 30,
                     height: 30,
@@ -286,8 +335,11 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(Icons.edit_rounded,
-                        color: cs.onPrimary, size: 15),
+                    child: Icon(
+                      Icons.edit_rounded,
+                      color: cs.onPrimary,
+                      size: 15,
+                    ),
                   ),
                 ),
               ),
@@ -295,40 +347,54 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Name
-          Text(
-            'Julian Thorne',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              // ✅ FIX: cs.onSurface
-              color: cs.onSurface,
-              letterSpacing: -0.3,
+          // MODIFIÉ : affiche un indicateur de chargement ou le vrai nom
+          if (isLoading)
+            Container(
+              width: 140,
+              height: 20,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            )
+          else
+            Text(
+              // MODIFIÉ : displayName vient de Firestore (plus de texte en dur)
+              displayName.isEmpty ? l10n.profileRole : displayName,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: cs.onSurface,
+                letterSpacing: -0.3,
+              ),
             ),
-          ),
           const SizedBox(height: 4),
 
-          // Role — localized
+          // MODIFIÉ : role vient de Firestore
           Text(
-            l10n.profileRole,
+            role == 'staff' ? 'Staff' : l10n.profileRole,
             style: TextStyle(
               fontSize: 14,
-              // ✅ FIX: cs.onSurfaceVariant
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 14),
 
-          // Badges — localized
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _Badge(label: l10n.deansList, filled: true),
-              const SizedBox(width: 8),
-              _Badge(label: l10n.juniorScholar, filled: false),
-            ],
-          ),
+          // MODIFIÉ : badges viennent de Firestore
+          if (badges.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (badges.contains('deans_list'))
+                  _Badge(label: l10n.deansList, filled: true),
+                if (badges.contains('deans_list') &&
+                    badges.contains('junior_scholar'))
+                  const SizedBox(width: 8),
+                if (badges.contains('junior_scholar'))
+                  _Badge(label: l10n.juniorScholar, filled: false),
+              ],
+            ),
         ],
       ),
     );
@@ -336,7 +402,7 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Badge pill — theme-aware
+//  Badge pill — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _Badge extends StatelessWidget {
   final String label;
@@ -349,7 +415,6 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        // ✅ FIX: amber stays amber (brand), gray pill uses theme surface
         color: filled ? const Color(0xFFF5C518) : cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
@@ -358,10 +423,7 @@ class _Badge extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
-          color: filled
-              ? const Color(0xFFB8860B)
-              // ✅ FIX: theme-aware for gray pill text
-              : cs.onSurfaceVariant,
+          color: filled ? const Color(0xFFB8860B) : cs.onSurfaceVariant,
           letterSpacing: 0.4,
         ),
       ),
@@ -370,7 +432,7 @@ class _Badge extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Section Card — theme-aware
+//  Section Card — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _SectionCard extends StatelessWidget {
   final IconData icon;
@@ -385,12 +447,10 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          // ✅ FIX: surfaceContainerLowest = white in light, dark card in dark
           color: cs.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -408,20 +468,20 @@ class _SectionCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
               child: Row(
                 children: [
-                  // ✅ FIX: primary color adapts to dark
                   Icon(icon, color: cs.primary, size: 20),
                   const SizedBox(width: 10),
-                  Text(title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurface,
-                      )),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Divider(
-                color: cs.surfaceContainerHighest, height: 1, thickness: 1),
+            Divider(color: cs.surfaceContainerHighest, height: 1, thickness: 1),
             ...children,
           ],
         ),
@@ -431,7 +491,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Toggle Row — theme-aware
+//  Toggle Row — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _ToggleRow extends StatelessWidget {
   final String title;
@@ -449,7 +509,6 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Row(
@@ -458,18 +517,19 @@ class _ToggleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        // ✅ FIX
-                        color: cs.onSurface)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: TextStyle(
-                        fontSize: 12,
-                        // ✅ FIX
-                        color: cs.onSurfaceVariant)),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
               ],
             ),
           ),
@@ -477,12 +537,10 @@ class _ToggleRow extends StatelessWidget {
             value: value,
             onChanged: onChanged,
             activeColor: Colors.white,
-            // ✅ FIX: primary from theme
             activeTrackColor: cs.primary,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: cs.surfaceContainerHighest,
-            trackOutlineColor:
-                WidgetStateProperty.all(Colors.transparent),
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ],
       ),
@@ -491,7 +549,7 @@ class _ToggleRow extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Language Selector — visual tile grid (EN / FR / AR)
+//  Language Selector — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _LanguageSelector extends StatelessWidget {
   final String label;
@@ -515,25 +573,26 @@ class _LanguageSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 13,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             children: _languages.map((lang) {
-              final code     = lang['code']!;
-              final flag     = lang['flag']!;
-              final native   = lang['native']!;
+              final code = lang['code']!;
+              final flag = lang['flag']!;
+              final native = lang['native']!;
               final selected = code == currentCode;
-
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -542,23 +601,22 @@ class _LanguageSelector extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 8),
+                        vertical: 12,
+                        horizontal: 8,
+                      ),
                       decoration: BoxDecoration(
-                        // ✅ Selected: primary color; unselected: surface
                         color: selected
                             ? cs.primary
                             : cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
                         border: selected
                             ? null
-                            : Border.all(
-                                color: cs.outline.withOpacity(0.3)),
+                            : Border.all(color: cs.outline.withOpacity(0.3)),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(flag,
-                              style: const TextStyle(fontSize: 22)),
+                          Text(flag, style: const TextStyle(fontSize: 22)),
                           const SizedBox(height: 6),
                           Text(
                             native,
@@ -597,7 +655,7 @@ class _LanguageSelector extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Action Row — theme-aware
+//  Action Row — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _ActionRow extends StatelessWidget {
   final IconData icon;
@@ -615,9 +673,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    // ✅ FIX: destructive uses cs.error, normal uses cs.onSurface
     final color = isDestructive ? cs.error : cs.onSurface;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -628,14 +684,20 @@ class _ActionRow extends StatelessWidget {
             Icon(icon, size: 20, color: color),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: color)),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: 20, color: cs.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: cs.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -644,20 +706,19 @@ class _ActionRow extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Cloud Storage Widget — theme-aware
+//  Cloud Storage Widget — inchangé (à connecter à Firebase Storage plus tard)
 // ═══════════════════════════════════════════════════════════════════════════
 class _StorageWidget extends StatelessWidget {
   final AppLocalizations l10n;
-  static const double _usedGb  = 12.4;
+  static const double _usedGb = 12.4;
   static const double _totalGb = 15.0;
 
   const _StorageWidget({required this.l10n});
 
   @override
   Widget build(BuildContext context) {
-    final cs  = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final pct = _usedGb / _totalGb;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       child: Column(
@@ -672,7 +733,6 @@ class _StorageWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.w900,
-                  // ✅ FIX
                   color: cs.onSurface,
                   letterSpacing: -1,
                 ),
@@ -688,7 +748,6 @@ class _StorageWidget extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                // ✅ Localized
                 l10n.ofGbUsed,
                 style: TextStyle(
                   fontSize: 11,
@@ -705,7 +764,6 @@ class _StorageWidget extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 7,
-              // ✅ FIX: theme-aware background
               backgroundColor: cs.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
             ),
@@ -713,10 +771,8 @@ class _StorageWidget extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Icon(Icons.sync_rounded,
-                  size: 13, color: cs.onSurfaceVariant),
+              Icon(Icons.sync_rounded, size: 13, color: cs.onSurfaceVariant),
               const SizedBox(width: 5),
-              // ✅ Localized
               Text(
                 l10n.syncedCloud,
                 style: TextStyle(
@@ -735,13 +791,12 @@ class _StorageWidget extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Internal helpers
+//  Internal helpers — inchangé
 // ═══════════════════════════════════════════════════════════════════════════
 class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Divider(
-        color: cs.surfaceContainerHighest, height: 1, thickness: 1);
+    return Divider(color: cs.surfaceContainerHighest, height: 1, thickness: 1);
   }
 }

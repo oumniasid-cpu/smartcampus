@@ -1,22 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import '../../../../core/di/injection.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../bloc/announcement_bloc.dart';
 import '../../domain/entities/announcement.dart';
-import '../../../../core/l10n/app_localization.dart';
 
-// ── Static brand colors only used for intentionally fixed UI
-//    (hero card dark bg, amber featured card, newsletter bg)
-//    Everything else uses Theme.of(context).colorScheme
+// ── Static brand colors — intentionnellement fixes (design de marque)
 class _Brand {
-  static const navyCard   = Color(0xFF0D1F3C);
-  static const tealBg     = Color(0xFF0F3D3E);
-  static const amberCard  = Color(0xFFFFD97D);
-  static const amberText  = Color(0xFFB8860B);
-  static const blueSoft   = Color(0xFFE8EFFE);
-  static const urgent     = Color(0xFFE53E3E);
-  static const safety     = Color(0xFF2B6CB0);
+  static const navyCard  = Color(0xFF0D1F3C);
+  static const tealBg    = Color(0xFF0F3D3E);
+  static const amberCard = Color(0xFFFFD97D);
+  static const urgent    = Color(0xFFE53E3E);
+  static const safety    = Color(0xFF2B6CB0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -27,7 +22,8 @@ class AnnouncementsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    // BUG CORRIGÉ : l10n était déclarée ici mais jamais utilisée dans build()
+    // → supprimée, chaque widget enfant lit l10n lui-même.
     return BlocProvider(
       create: (_) =>
           getIt<AnnouncementsBloc>()..add(AnnouncementsLoadRequested()),
@@ -54,33 +50,32 @@ class _NewsViewState extends State<_NewsView> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!; // ← NOUVEAU
 
     return Scaffold(
-      // FIX 2: theme-driven background
       backgroundColor: cs.surface,
-      appBar: _buildAppBar(context, cs),
+      appBar: _buildAppBar(cs, l10n),
       body: BlocBuilder<AnnouncementsBloc, AnnouncementsState>(
         builder: (context, state) {
           if (state is AnnouncementsLoading || state is AnnouncementsInitial) {
-            return _buildSyncingState(cs);
+            return _buildSyncingState(cs, l10n);
           }
           if (state is AnnouncementsError) {
-            return _buildErrorState(context, cs);
+            return _buildErrorState(context, cs, l10n);
           }
           if (state is AnnouncementsLoaded) {
-            return _buildContent(context, cs, state.announcements);
+            return _buildContent(context, cs, l10n, state.announcements);
           }
-          return _buildSyncingState(cs);
+          return _buildSyncingState(cs, l10n);
         },
       ),
     );
   }
 
   // ── AppBar ────────────────────────────────────────────────────────────────
-  PreferredSizeWidget _buildAppBar(BuildContext context, ColorScheme cs) {
+  PreferredSizeWidget _buildAppBar(ColorScheme cs, AppLocalizations l10n) {
     return AppBar(
-      // FIX 2: uses theme primary
       backgroundColor: cs.primary,
       elevation: 0,
       titleSpacing: 16,
@@ -92,14 +87,11 @@ class _NewsViewState extends State<_NewsView> {
               color: cs.onPrimary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.school_outlined,
-                color: cs.onPrimary, size: 18),
+            child: Icon(Icons.school_outlined, color: cs.onPrimary, size: 18),
           ),
           const SizedBox(width: 10),
-          Text('SmartCampus',
-              style: TextStyle(
-                  color: cs.onPrimary,
-                  fontSize: 17,
+          Text(l10n.appName, // ← était 'SmartCampus'
+              style: TextStyle(color: cs.onPrimary, fontSize: 17,
                   fontWeight: FontWeight.bold)),
         ],
       ),
@@ -127,11 +119,8 @@ class _NewsViewState extends State<_NewsView> {
   }
 
   // ── Content ───────────────────────────────────────────────────────────────
-  Widget _buildContent(
-    BuildContext context,
-    ColorScheme cs,
-    List<Announcement> items,
-  ) {
+  Widget _buildContent(BuildContext context, ColorScheme cs,
+      AppLocalizations l10n, List<Announcement> items) {
     return RefreshIndicator(
       color: cs.primary,
       onRefresh: () async {
@@ -143,7 +132,7 @@ class _NewsViewState extends State<_NewsView> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _buildHeader(cs),
+          _buildHeader(cs, l10n),
           if (items.isNotEmpty) ...[
             const SizedBox(height: 16),
             Padding(
@@ -162,7 +151,7 @@ class _NewsViewState extends State<_NewsView> {
           ...List.generate(
             items.length > 2 ? items.length - 2 : 0,
             (i) {
-              final item = items[i + 2];
+              final item   = items[i + 2];
               final isEvent = i % 3 == 2;
               return Column(
                 children: [
@@ -200,32 +189,24 @@ class _NewsViewState extends State<_NewsView> {
   }
 
   // ── Header ────────────────────────────────────────────────────────────────
-  Widget _buildHeader(ColorScheme cs) {
+  Widget _buildHeader(ColorScheme cs, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('CAMPUS BULLETIN',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  // FIX 2: secondary color from theme
-                  color: cs.secondary,
-                  letterSpacing: 1.2)),
+          Text(l10n.campusBulletin, // ← était 'CAMPUS BULLETIN'
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                  color: cs.secondary, letterSpacing: 1.2)),
           const SizedBox(height: 6),
           RichText(
             text: TextSpan(
-              style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  // FIX 2: theme onSurface
-                  color: cs.onSurface,
-                  height: 1.2),
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900,
+                  color: cs.onSurface, height: 1.2),
               children: [
-                const TextSpan(text: "What's happening\n"),
+                TextSpan(text: '${l10n.whatsHappening}\n'), // ← était "What's happening\n"
                 TextSpan(
-                    text: 'on campus.',
+                    text: l10n.onCampus, // ← était 'on campus.'
                     style: TextStyle(color: cs.secondary)),
               ],
             ),
@@ -236,7 +217,7 @@ class _NewsViewState extends State<_NewsView> {
   }
 
   // ── Syncing state ─────────────────────────────────────────────────────────
-  Widget _buildSyncingState(ColorScheme cs) {
+  Widget _buildSyncingState(ColorScheme cs, AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -250,11 +231,8 @@ class _NewsViewState extends State<_NewsView> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Syncing feed...',
-              style: TextStyle(
-                  fontSize: 14,
-                  // FIX 2
-                  color: cs.onSurfaceVariant,
+          Text(l10n.syncingFeed, // ← était 'Syncing feed...'
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500)),
         ],
       ),
@@ -262,7 +240,8 @@ class _NewsViewState extends State<_NewsView> {
   }
 
   // ── Error / Connection Lost state ─────────────────────────────────────────
-  Widget _buildErrorState(BuildContext context, ColorScheme cs) {
+  Widget _buildErrorState(BuildContext context, ColorScheme cs,
+      AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -277,17 +256,13 @@ class _NewsViewState extends State<_NewsView> {
                 color: cs.onErrorContainer, size: 30),
           ),
           const SizedBox(height: 16),
-          Text('Connection Lost',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+          Text(l10n.connectionLost, // ← était 'Connection Lost'
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
                   color: cs.onSurface)),
           const SizedBox(height: 8),
-          Text("We couldn't reach the campus\nnews server.",
+          Text(l10n.connectionLostDesc, // ← était "We couldn't reach..."
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 14,
-                  color: cs.onSurfaceVariant,
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant,
                   height: 1.5)),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -295,17 +270,15 @@ class _NewsViewState extends State<_NewsView> {
                 .read<AnnouncementsBloc>()
                 .add(AnnouncementsLoadRequested(forceRefresh: true)),
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Retry'),
+            label: Text(l10n.retryBtn), // ← était 'Retry'
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 28, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               elevation: 0,
-              textStyle: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -315,7 +288,7 @@ class _NewsViewState extends State<_NewsView> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Hero Card — intentionally dark (brand design, not theme-driven)
+//  Hero Card — dark intentionnel (design de marque)
 // ═══════════════════════════════════════════════════════════════════════════
 class _HeroCard extends StatelessWidget {
   final Announcement announcement;
@@ -323,43 +296,36 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Column(
         children: [
           Container(
-            height: 180,
-            width: double.infinity,
+            height: 180, width: double.infinity,
             color: _Brand.tealBg,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 Positioned(
                   top: -10, right: -10,
-                  child: Opacity(
-                    opacity: 0.15,
-                    child: Icon(Icons.eco_rounded,
-                        size: 120, color: Colors.tealAccent),
-                  ),
+                  child: Opacity(opacity: 0.15,
+                      child: Icon(Icons.eco_rounded,
+                          size: 120, color: Colors.tealAccent)),
                 ),
                 Positioned(
                   bottom: -10, left: -10,
-                  child: Opacity(
-                    opacity: 0.12,
-                    child: Icon(Icons.eco_rounded,
-                        size: 90, color: Colors.tealAccent),
-                  ),
+                  child: Opacity(opacity: 0.12,
+                      child: Icon(Icons.eco_rounded,
+                          size: 90, color: Colors.tealAccent)),
                 ),
-                Center(
+                const Center(
                   child: Text('Campus\nEvents',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.tealAccent.withOpacity(0.6),
-                          fontStyle: FontStyle.italic,
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900,
+                          color: Colors.tealAccent, fontStyle: FontStyle.italic,
                           height: 1.1)),
                 ),
               ],
@@ -376,46 +342,35 @@ class _HeroCard extends StatelessWidget {
                   children: [
                     _Tag(label: 'URGENT', color: _Brand.urgent),
                     const SizedBox(width: 8),
-                    _Tag(
-                        label: 'SAFETY',
-                        color: _Brand.safety,
-                        outlined: true),
+                    _Tag(label: 'SAFETY', color: _Brand.safety, outlined: true),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(announcement.title,
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                    style: const TextStyle(fontSize: 20,
+                        fontWeight: FontWeight.w800, color: Colors.white,
                         height: 1.25)),
                 const SizedBox(height: 8),
                 Text(announcement.body,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.65),
-                        height: 1.5)),
+                    maxLines: 3, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13,
+                        color: Colors.white.withOpacity(0.65), height: 1.5)),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () =>
-                      _navigateToDetail(context, announcement),
+                  onPressed: () => _navigateToDetail(context, announcement),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        cs.primary.withOpacity(0.25),
+                    backgroundColor: cs.primary.withOpacity(0.25),
                     foregroundColor: const Color(0xFF93B4FF),
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
-                    side: const BorderSide(
-                        color: Color(0xFF93B4FF), width: 0.5),
+                    side: const BorderSide(color: Color(0xFF93B4FF), width: 0.5),
                   ),
-                  child: const Text('Read Protocol',
-                      style: TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold)),
+                  child: Text(l10n.readProtocol, // ← était 'Read Protocol'
+                      style: const TextStyle(fontSize: 14,
+                          fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -427,7 +382,7 @@ class _HeroCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Featured Yellow Card — intentional amber color, not theme-driven
+//  Featured Yellow Card
 // ═══════════════════════════════════════════════════════════════════════════
 class _FeaturedYellowCard extends StatelessWidget {
   final Announcement announcement;
@@ -435,6 +390,8 @@ class _FeaturedYellowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return GestureDetector(
       onTap: () => _navigateToDetail(context, announcement),
       child: Container(
@@ -457,27 +414,20 @@ class _FeaturedYellowCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(announcement.title,
-                style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0A1931),
-                    height: 1.2)),
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+                    color: Color(0xFF0A1931), height: 1.2)),
             const SizedBox(height: 6),
             Text(announcement.body,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 13,
+                maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13,
                     color: const Color(0xFF0A1931).withOpacity(0.7),
                     height: 1.45)),
             const SizedBox(height: 14),
             Row(
               children: [
-                const Text('7 Days Left',
-                    style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0A1931))),
+                Text(l10n.sevenDaysLeft, // ← était '7 Days Left'
+                    style: const TextStyle(fontSize: 14,
+                        fontWeight: FontWeight.w800, color: Color(0xFF0A1931))),
                 const Spacer(),
                 const Icon(Icons.arrow_forward_rounded,
                     color: Color(0xFF0A1931), size: 20),
@@ -491,7 +441,7 @@ class _FeaturedYellowCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Text News Card — fully theme-aware
+//  Text News Card
 // ═══════════════════════════════════════════════════════════════════════════
 class _TextNewsCard extends StatelessWidget {
   final Announcement announcement;
@@ -506,15 +456,11 @@ class _TextNewsCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          // FIX 2: surfaceContainerLowest is white in light, dark in dark
           color: cs.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.04),
+                blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Column(
@@ -523,28 +469,21 @@ class _TextNewsCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _CategoryPill(label: 'ACADEMIC'),
+                const _CategoryPill(label: 'ACADEMIC'),
                 Text('2h ago',
-                    style: TextStyle(
-                        fontSize: 12,
+                    style: TextStyle(fontSize: 12,
                         color: cs.onSurfaceVariant,
                         fontWeight: FontWeight.w500)),
               ],
             ),
             const SizedBox(height: 12),
             Text(announcement.title,
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
-                    height: 1.25)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                    color: cs.onSurface, height: 1.25)),
             const SizedBox(height: 8),
             Text(announcement.body,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: cs.onSurfaceVariant,
+                maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant,
                     height: 1.55)),
             const SizedBox(height: 14),
             Divider(color: cs.surfaceContainerHighest, height: 1),
@@ -553,8 +492,7 @@ class _TextNewsCard extends StatelessWidget {
               children: [
                 _ActionIcon(icon: Icons.share_outlined, onTap: () {}),
                 const SizedBox(width: 16),
-                _ActionIcon(
-                    icon: Icons.bookmark_border_rounded, onTap: () {}),
+                _ActionIcon(icon: Icons.bookmark_border_rounded, onTap: () {}),
               ],
             ),
           ],
@@ -565,7 +503,7 @@ class _TextNewsCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Event Card — theme-aware
+//  Event Card
 // ═══════════════════════════════════════════════════════════════════════════
 class _EventCard extends StatelessWidget {
   final Announcement announcement;
@@ -573,7 +511,8 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return GestureDetector(
       onTap: () => _navigateToDetail(context, announcement),
@@ -583,11 +522,8 @@ class _EventCard extends StatelessWidget {
           color: cs.surfaceContainerLowest,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.04),
+                blurRadius: 12, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -608,40 +544,32 @@ class _EventCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text('EVENT',
-                          style: TextStyle(
-                              fontSize: 10,
+                      Text(l10n.event, // ← était 'EVENT'
+                          style: TextStyle(fontSize: 10,
                               fontWeight: FontWeight.w800,
-                              color: cs.secondary,
-                              letterSpacing: 0.5)),
+                              color: cs.secondary, letterSpacing: 0.5)),
                       const SizedBox(width: 6),
-                      Container(
-                          width: 3,
-                          height: 3,
+                      Container(width: 3, height: 3,
                           decoration: BoxDecoration(
                               color: cs.onSurfaceVariant,
                               shape: BoxShape.circle)),
                       const SizedBox(width: 6),
-                      Text('Today',
-                          style: TextStyle(
-                              fontSize: 10,
+                      Text(l10n.today, // ← était 'Today'
+                          style: TextStyle(fontSize: 10,
                               color: cs.onSurfaceVariant,
                               fontWeight: FontWeight.w500)),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(announcement.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                          height: 1.25)),
+                          color: cs.onSurface, height: 1.25)),
                   const SizedBox(height: 4),
                   Text('Grand Hall, 10:00 AM ...',
-                      style: TextStyle(
-                          fontSize: 12, color: cs.onSurfaceVariant)),
+                      style: TextStyle(fontSize: 12,
+                          color: cs.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -663,7 +591,7 @@ class _EventCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Newsletter Card — intentional fixed blue-soft bg, not theme-driven
+//  Newsletter Card
 // ═══════════════════════════════════════════════════════════════════════════
 class _NewsletterCard extends StatelessWidget {
   final TextEditingController emailCtrl;
@@ -671,7 +599,8 @@ class _NewsletterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -682,27 +611,20 @@ class _NewsletterCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('The Weekly Scholar',
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: cs.onPrimaryContainer,
-                  height: 1.2)),
+          Text(l10n.weeklyScholar, // ← était 'The Weekly Scholar'
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
+                  color: cs.onPrimaryContainer, height: 1.2)),
           const SizedBox(height: 6),
-          Text(
-            'Subscribe to get the curated campus digest in your inbox every Monday.',
-            style: TextStyle(
-                fontSize: 13,
-                color: cs.onPrimaryContainer.withOpacity(0.8),
-                height: 1.5),
-          ),
+          Text(l10n.weeklyScholarDesc, // ← était 'Subscribe to get...'
+              style: TextStyle(fontSize: 13,
+                  color: cs.onPrimaryContainer.withOpacity(0.8), height: 1.5)),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: Container(
                   height: 46,
-                  alignment: Alignment.center, // Added: Centers the TextField vertically
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: cs.surface,
                     borderRadius: BorderRadius.circular(10),
@@ -710,18 +632,16 @@ class _NewsletterCard extends StatelessWidget {
                   child: TextField(
                     controller: emailCtrl,
                     keyboardType: TextInputType.emailAddress,
-                    textAlignVertical: TextAlignVertical.center, // Added: Aligns text to center
+                    textAlignVertical: TextAlignVertical.center,
                     style: TextStyle(fontSize: 14, color: cs.onSurface),
                     decoration: InputDecoration(
-                      hintText: 'Email',
-                      hintStyle: TextStyle(
-                        color: cs.onSurfaceVariant, 
-                        fontSize: 14,
-                      ),
+                      hintText: l10n.emailHint, // ← était 'Email'
+                      hintStyle: TextStyle(color: cs.onSurfaceVariant,
+                          fontSize: 14),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                      isCollapsed: false, // Changed: Standard behavior handles height better
-                      isDense: true,      // Added: Keeps the field compact
+                      isCollapsed: false,
+                      isDense: true,
                     ),
                   ),
                 ),
@@ -735,8 +655,7 @@ class _NewsletterCard extends StatelessWidget {
                     color: cs.primary,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(Icons.send_rounded,
-                      color: cs.onPrimary, size: 20),
+                  child: Icon(Icons.send_rounded, color: cs.onPrimary, size: 20),
                 ),
               ),
             ],
@@ -766,11 +685,8 @@ class _Tag extends StatelessWidget {
         border: outlined ? Border.all(color: color) : null,
       ),
       child: Text(label,
-          style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: outlined ? color : Colors.white,
-              letterSpacing: 0.4)),
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+              color: outlined ? color : Colors.white, letterSpacing: 0.4)),
     );
   }
 }
@@ -785,16 +701,12 @@ class _CategoryPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        // FIX 2: theme surface container
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
-          style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: cs.onSurfaceVariant,
-              letterSpacing: 0.4)),
+          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+              color: cs.onSurfaceVariant, letterSpacing: 0.4)),
     );
   }
 }
@@ -831,7 +743,7 @@ class _AnnouncementDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -859,27 +771,21 @@ class _AnnouncementDetailPage extends StatelessWidget {
           children: [
             Row(
               children: [
-                _CategoryPill(label: 'ACADEMIC'),
+                const _CategoryPill(label: 'ACADEMIC'),
                 const SizedBox(width: 8),
                 Text('2h ago',
-                    style: TextStyle(
-                        fontSize: 12, color: cs.onSurfaceVariant)),
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
               ],
             ),
             const SizedBox(height: 16),
             Text(announcement.title,
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    color: cs.onSurface,
-                    height: 1.2)),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
+                    color: cs.onSurface, height: 1.2)),
             const SizedBox(height: 16),
             Divider(color: cs.surfaceContainerHighest),
             const SizedBox(height: 16),
             Text(announcement.body,
-                style: TextStyle(
-                    fontSize: 15,
-                    color: cs.onSurfaceVariant,
+                style: TextStyle(fontSize: 15, color: cs.onSurfaceVariant,
                     height: 1.7)),
           ],
         ),

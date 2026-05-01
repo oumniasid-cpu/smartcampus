@@ -1,10 +1,10 @@
 /// Base class for all use cases.
-/// [Type]   = return type wrapped in Either
+/// [Result] = return type wrapped in Either
 /// [Params] = input parameters
-abstract class UseCase<Type, Params> {
-  Future<Type> call(Params params);
+abstract class UseCase<Result, Params> {
+  Future<Result> call(Params params);
 }
- 
+
 /// Use when a use case needs no parameters.
 class NoParams {
   const NoParams();

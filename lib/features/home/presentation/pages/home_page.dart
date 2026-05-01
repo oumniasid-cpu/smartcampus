@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-
+import 'package:smartcampus/l10n/app_localizations.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/router/app_router.dart';
 import '../../../announcements/presentation/bloc/announcement_bloc.dart';
-import '../../../events/presentation/bloc/events_bloc.dart';
-
 
 // ── UI-only data models ────────────────────────────────────────────────────
 class _ScheduleItem {
@@ -35,10 +31,6 @@ class _ServiceItem {
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  HomePage
-//  FIX 3: removed MultiBlocProvider wrapping AnnouncementsBloc/EventsBloc
-//          → each feature page manages its own BLoC instance
-//          → HomePage only needs AnnouncementsBloc for the offline banner,
-//            registered as a separate BlocProvider scoped to this page only
 // ═══════════════════════════════════════════════════════════════════════════
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -65,8 +57,6 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // FIX 3: Only AnnouncementsBloc needed here (for offline banner).
-    // EventsBloc is NOT provided here — it belongs to EventsPage.
     return BlocProvider(
       create: (_) =>
           getIt<AnnouncementsBloc>()..add(AnnouncementsLoadRequested()),
@@ -76,8 +66,7 @@ class HomePage extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  _HomeScaffold — Scaffold that reads theme colors dynamically
-//  FIX 2: All _C.xxx hardcoded colors replaced with Theme/ColorScheme
+//  _HomeScaffold
 // ─────────────────────────────────────────────────────────────────────────────
 class _HomeScaffold extends StatelessWidget {
   final List<_ScheduleItem> schedule;
@@ -85,19 +74,18 @@ class _HomeScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      // FIX 2: uses theme surface instead of hardcoded Color(0xFFF5F7FA)
       backgroundColor: cs.surface,
-      appBar: _buildAppBar(context, cs),
+      appBar: _buildAppBar(cs, l10n),
       body: _HomeBody(schedule: schedule),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, ColorScheme cs) {
+  PreferredSizeWidget _buildAppBar(ColorScheme cs, AppLocalizations l10n) {
     return AppBar(
-      // FIX 2: AppBar background comes from theme primary
       backgroundColor: cs.primary,
       elevation: 0,
       titleSpacing: 20,
@@ -109,12 +97,11 @@ class _HomeScaffold extends StatelessWidget {
               color: cs.onPrimary.withOpacity(0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.school_outlined,
-                color: cs.onPrimary, size: 18),
+            child: Icon(Icons.school_outlined, color: cs.onPrimary, size: 18),
           ),
           const SizedBox(width: 10),
           Text(
-            'SmartCampus',
+            l10n.appName, // ← était 'SmartCampus'
             style: TextStyle(
               color: cs.onPrimary,
               fontSize: 17,
@@ -132,11 +119,9 @@ class _HomeScaffold extends StatelessWidget {
               onPressed: () {},
             ),
             Positioned(
-              top: 10,
-              right: 10,
+              top: 10, right: 10,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 8, height: 8,
                 decoration: const BoxDecoration(
                   color: Color(0xFFFF4D4D),
                   shape: BoxShape.circle,
@@ -160,13 +145,12 @@ class _HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return BlocBuilder<AnnouncementsBloc, AnnouncementsState>(
       builder: (context, state) {
-        final isOffline =
-            state is AnnouncementsLoaded && state.isOffline;
+        final isOffline = state is AnnouncementsLoaded && state.isOffline;
 
         return RefreshIndicator(
           color: cs.primary,
@@ -189,15 +173,14 @@ class _HomeBody extends StatelessWidget {
                       _OfflineBanner(
                         onRetry: () => context
                             .read<AnnouncementsBloc>()
-                            .add(AnnouncementsLoadRequested(
-                                forceRefresh: true)),
+                            .add(AnnouncementsLoadRequested(forceRefresh: true)),
                       ),
                       const SizedBox(height: 16),
                     ],
                     const SizedBox(height: 8),
-                    _buildGreeting(context, cs),
+                    _buildGreeting(cs, l10n),
                     const SizedBox(height: 6),
-                    _buildNextClassHint(context, cs, schedule),
+                    _buildNextClassHint(cs, schedule),
                     const SizedBox(height: 28),
                     _ScheduleSection(schedule: schedule),
                     const SizedBox(height: 28),
@@ -215,27 +198,25 @@ class _HomeBody extends StatelessWidget {
     );
   }
 
-  // ── Greeting ──────────────────────────────────────────────────────────────
-  Widget _buildGreeting(BuildContext context, ColorScheme cs) {
+  Widget _buildGreeting(ColorScheme cs, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Good morning,',
+          l10n.goodMorning, // ← était 'Good morning,'
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w800,
-            // FIX 2: cs.onSurface adapts to light/dark automatically
             color: cs.onSurface,
             height: 1.1,
           ),
         ),
-        Text(
+        const Text(
+          // NOTE : prénom dynamique → viendra de Firebase (UserProfile.displayName)
           'Alex.',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w800,
-            color: cs.onSurface,
             height: 1.2,
           ),
         ),
@@ -243,22 +224,14 @@ class _HomeBody extends StatelessWidget {
     );
   }
 
-  // ── Next class hint ───────────────────────────────────────────────────────
-  Widget _buildNextClassHint(
-    BuildContext context,
-    ColorScheme cs,
-    List<_ScheduleItem> schedule,
-  ) {
+  Widget _buildNextClassHint(ColorScheme cs, List<_ScheduleItem> schedule) {
     final next = schedule.firstWhere((s) => s.isNext,
         orElse: () => schedule.first);
     return Text(
+      // NOTE : phrase avec données dynamiques → non traduite volontairement.
+      // À gérer avec intl plurals quand les données viendront de Firebase.
       'Your first lecture, ${next.title}, starts in 45 minutes in South Wing, ${next.room}.',
-      style: TextStyle(
-        fontSize: 14,
-        // FIX 2: cs.onSurfaceVariant adapts to dark mode
-        color: cs.onSurfaceVariant,
-        height: 1.55,
-      ),
+      style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant, height: 1.55),
     );
   }
 }
@@ -272,6 +245,8 @@ class _OfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -281,26 +256,23 @@ class _OfflineBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_off_rounded,
-              color: Color(0xFF92660A), size: 20),
+          const Icon(Icons.wifi_off_rounded, color: Color(0xFF92660A), size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Offline Mode Active',
-                    style: TextStyle(
+                Text(l10n.offlineModeActive, // ← était 'Offline Mode Active'
+                    style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF7A5200))),
                 const SizedBox(height: 2),
-                Text(
-                  'Displaying cached data from your last sync.',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: const Color(0xFF7A5200).withOpacity(0.85),
-                      height: 1.4),
-                ),
+                Text(l10n.offlineModeDesc, // ← était 'Displaying cached data...'
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: const Color(0xFF7A5200).withOpacity(0.85),
+                        height: 1.4)),
               ],
             ),
           ),
@@ -316,9 +288,8 @@ class _OfflineBanner extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8)),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('RETRY',
-                style:
-                    TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+            child: Text(l10n.retry, // ← était 'RETRY'
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -335,7 +306,8 @@ class _ScheduleSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,44 +315,28 @@ class _ScheduleSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Today's Schedule",
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    // FIX 2: theme-aware
+            Text(l10n.todaySchedule, // ← était "Today's Schedule"
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
                     color: cs.onSurface)),
-            Text(
-              'SEPT 14, TUESDAY',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: cs.onSurfaceVariant,
-                  letterSpacing: 0.4),
-            ),
+            Text('SEPT 14, TUESDAY', // date dynamique → DateFormat plus tard
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                    color: cs.onSurfaceVariant, letterSpacing: 0.4)),
           ],
         ),
         const SizedBox(height: 14),
         Container(
           decoration: BoxDecoration(
-            // FIX 2: card uses theme surface container
             color: cs.surfaceContainerLowest,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12, offset: const Offset(0, 4)),
             ],
           ),
           child: Column(
-            children: List.generate(
-              schedule.length,
-              (i) => _ScheduleRow(
-                item: schedule[i],
-                isLast: i == schedule.length - 1,
-              ),
-            ),
+            children: List.generate(schedule.length,
+              (i) => _ScheduleRow(item: schedule[i],
+                  isLast: i == schedule.length - 1)),
           ),
         ),
       ],
@@ -398,7 +354,8 @@ class _ScheduleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       children: [
@@ -407,40 +364,29 @@ class _ScheduleRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Time
               SizedBox(
                 width: 48,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(item.time,
-                        style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            // FIX 2
-                            color: cs.onSurface)),
+                        style: TextStyle(fontSize: 13,
+                            fontWeight: FontWeight.w700, color: cs.onSurface)),
                     Text(item.period,
-                        style: TextStyle(
-                            fontSize: 11,
+                        style: TextStyle(fontSize: 11,
                             color: cs.onSurfaceVariant,
                             fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
-              // Accent bar
               Container(
-                width: 3,
-                height: 52,
+                width: 3, height: 52,
                 margin: const EdgeInsets.only(right: 14),
                 decoration: BoxDecoration(
-                  // FIX 2: blue accent from theme, surface from theme
-                  color: item.isNext
-                      ? cs.primary
-                      : cs.surfaceContainerHighest,
+                  color: item.isNext ? cs.primary : cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,8 +395,7 @@ class _ScheduleRow extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(item.title,
-                              style: TextStyle(
-                                  fontSize: 14,
+                              style: TextStyle(fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: cs.onSurface)),
                         ),
@@ -463,9 +408,8 @@ class _ScheduleRow extends StatelessWidget {
                               color: cs.primary,
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Text('UP NEXT',
-                                style: TextStyle(
-                                    fontSize: 9,
+                            child: Text(l10n.upNext, // ← était 'UP NEXT'
+                                style: TextStyle(fontSize: 9,
                                     fontWeight: FontWeight.w800,
                                     color: cs.onPrimary,
                                     letterSpacing: 0.5)),
@@ -475,13 +419,13 @@ class _ScheduleRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(item.subtitle,
-                        style: TextStyle(
-                            fontSize: 12, color: cs.onSurfaceVariant)),
+                        style: TextStyle(fontSize: 12,
+                            color: cs.onSurfaceVariant)),
                     if (item.room.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(item.room,
-                          style: TextStyle(
-                              fontSize: 12, color: cs.onSurfaceVariant)),
+                          style: TextStyle(fontSize: 12,
+                              color: cs.onSurfaceVariant)),
                     ],
                   ],
                 ),
@@ -490,13 +434,8 @@ class _ScheduleRow extends StatelessWidget {
           ),
         ),
         if (!isLast)
-          Divider(
-              height: 1,
-              thickness: 1,
-              // FIX 2
-              color: cs.surfaceContainerHighest,
-              indent: 16,
-              endIndent: 16),
+          Divider(height: 1, thickness: 1,
+              color: cs.surfaceContainerHighest, indent: 16, endIndent: 16),
       ],
     );
   }
@@ -508,34 +447,25 @@ class _ScheduleRow extends StatelessWidget {
 class _CampusServicesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     final services = [
-      _ServiceItem(
-          icon: Icons.restaurant_menu_outlined,
-          label: 'Dining Hall\nMenus',
-          onTap: () {}),
-      _ServiceItem(
-          icon: Icons.local_library_outlined,
-          label: 'Library\nBooking',
-          onTap: () {}),
-      _ServiceItem(
-          icon: Icons.directions_bus_outlined,
-          label: 'Campus\nShuttle',
-          onTap: () {}),
-      _ServiceItem(
-          icon: Icons.support_agent_outlined,
-          label: 'Student\nSupport',
-          onTap: () {}),
+      _ServiceItem(icon: Icons.restaurant_menu_outlined,
+          label: l10n.diningHall, onTap: () {}),      // ← était 'Dining Hall\nMenus'
+      _ServiceItem(icon: Icons.local_library_outlined,
+          label: l10n.libraryBooking, onTap: () {}),  // ← était 'Library\nBooking'
+      _ServiceItem(icon: Icons.directions_bus_outlined,
+          label: l10n.campusShuttle, onTap: () {}),   // ← était 'Campus\nShuttle'
+      _ServiceItem(icon: Icons.support_agent_outlined,
+          label: l10n.studentSupport, onTap: () {}),  // ← était 'Student\nSupport'
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Campus Services',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+        Text(l10n.campusServices, // ← était 'Campus Services'
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
                 color: cs.onSurface)),
         const SizedBox(height: 14),
         GridView.count(
@@ -564,7 +494,6 @@ class _ServiceCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Material(
-      // FIX 2: theme surface
       color: cs.surfaceContainerLowest,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -577,7 +506,6 @@ class _ServiceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  // FIX 2: surfaceContainerHighest adapts to dark
                   color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -586,11 +514,8 @@ class _ServiceCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(item.label,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
-                        height: 1.3)),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
+                        color: cs.onSurface, height: 1.3)),
               ),
             ],
           ),
@@ -601,18 +526,18 @@ class _ServiceCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Milestone Banner — intentionally dark regardless of theme
+//  Milestone Banner
 // ─────────────────────────────────────────────────────────────────────────────
 class _MilestoneBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs   = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        // Milestone is always dark navy — intentional brand choice
         color: const Color(0xFF0D2B5E),
         borderRadius: BorderRadius.circular(18),
       ),
@@ -625,29 +550,22 @@ class _MilestoneBanner extends StatelessWidget {
               color: Colors.white.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('ACADEMIC MILESTONE',
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white70,
-                    letterSpacing: 1)),
+            child: Text(l10n.academicMilestone, // ← était 'ACADEMIC MILESTONE'
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800,
+                    color: Colors.white70, letterSpacing: 1)),
           ),
           const SizedBox(height: 14),
           const Text(
+            // NOTE : contenu dynamique (nb de jours) → viendra de Firebase.
             'Registration for\nSpring Semester\nopens in 12 days.',
-            style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                height: 1.25),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800,
+                color: Colors.white, height: 1.25),
           ),
           const SizedBox(height: 12),
           Text(
             'Review your degree audit and meet with your advisor to clear any holds before the enrollment window begins.',
-            style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.7),
-                height: 1.55),
+            style: TextStyle(fontSize: 13,
+                color: Colors.white.withOpacity(0.7), height: 1.55),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -662,9 +580,8 @@ class _MilestoneBanner extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
-              child: const Text('View Enrollment Guide',
-                  style: TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.bold)),
+              child: Text(l10n.viewEnrollmentGuide, // ← était 'View Enrollment Guide'
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
