@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/di/injection.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/announcements/presentation/pages/announcement_page.dart';
 import '../../features/events/presentation/pages/event_page.dart';
-import '../../features/settings/presentation/pages/settings _page.dart';
+import '../../features/settings/presentation/bloc/settings_bloc.dart';
+import '../../features/settings/presentation/pages/settings _page.dart'; // keep space if file has space
 
 abstract class AppRoutes {
   static const login         = '/login';
@@ -45,8 +48,12 @@ class AppRouter {
           ),
           GoRoute(
             path: AppRoutes.settings,
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: SettingsPage()),
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: BlocProvider(
+                create: (_) => getIt<SettingsBloc>(),
+                child: const SettingsPage(),
+              ),
+            ),
           ),
         ],
       ),
@@ -54,13 +61,6 @@ class AppRouter {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  ScaffoldWithNav — fully theme-aware bottom navigation
-//  Compatible with: AGP 8.3.2 · Kotlin 1.9.25 · Gradle 8.13 · Flutter 3.x
-//
-//  Light mode: Navy (#00193B) + Blue (#0061D4) from AppTheme
-//  Dark mode:  follows colorScheme automatically
-// ─────────────────────────────────────────────────────────────────────────────
 class ScaffoldWithNav extends StatelessWidget {
   final Widget child;
   const ScaffoldWithNav({super.key, required this.child});
@@ -72,10 +72,9 @@ class ScaffoldWithNav extends StatelessWidget {
     AppRoutes.settings,
   ];
 
-  // ── AppTheme constants (mirrored here to avoid cross-import) ──────────────
-  static const _navyColor      = Color(0xFF00193B); // AppTheme._primaryColor
-  static const _blueColor      = Color(0xFF0061D4); // AppTheme._secondaryColor
-  static const _indicatorLight = Color(0xFFE3F0FF); // soft blue tint
+  static const _navyColor      = Color(0xFF00193B);
+  static const _blueColor      = Color(0xFF0061D4);
+  static const _indicatorLight = Color(0xFFE3F0FF);
 
   @override
   Widget build(BuildContext context) {
@@ -84,18 +83,17 @@ class ScaffoldWithNav extends StatelessWidget {
     final cs           = Theme.of(context).colorScheme;
     final isDark       = Theme.of(context).brightness == Brightness.dark;
 
-    // ── Resolved colors ─────────────────────────────────────────────────────
-    final navBg           = isDark ? cs.surface          : Colors.white;
-    final selectedColor   = isDark ? cs.secondary        : _blueColor;
+    final navBg           = isDark ? cs.surface       : Colors.white;
+    final selectedColor   = isDark ? cs.secondary     : _blueColor;
     final unselectedColor = isDark
-        ? cs.onSurface.withAlpha(100)   // ~40% — withAlpha replaces deprecated withOpacity
-        : _navyColor.withAlpha(90);     // ~35%
+        ? cs.onSurface.withAlpha(100)
+        : _navyColor.withAlpha(90);
     final indicatorColor  = isDark
-        ? cs.secondary.withAlpha(46)    // ~18%
+        ? cs.secondary.withAlpha(46)
         : _indicatorLight;
     final borderColor     = isDark
-        ? cs.onSurface.withAlpha(20)    // ~8%
-        : const Color(0x1F000000);      // grey 12%
+        ? cs.onSurface.withAlpha(20)
+        : const Color(0x1F000000);
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -133,18 +131,14 @@ class ScaffoldWithNav extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: navBg,
-            border: Border(
-              top: BorderSide(color: borderColor, width: 1),
-            ),
-            boxShadow: isDark
-                ? null
-                : [
-                    BoxShadow(
-                      color: _navyColor.withAlpha(15), // subtle lift
-                      blurRadius: 12,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
+            boxShadow: isDark ? null : [
+              BoxShadow(
+                color: _navyColor.withAlpha(15),
+                blurRadius: 12,
+                offset: const Offset(0, -3),
+              ),
+            ],
           ),
           child: NavigationBar(
             labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -154,22 +148,22 @@ class ScaffoldWithNav extends StatelessWidget {
             onDestinationSelected: (i) => context.go(_tabs[i]),
             destinations: const [
               NavigationDestination(
-                icon:         Icon(Icons.home_outlined),
+                icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home_rounded),
                 label: 'HOME',
               ),
               NavigationDestination(
-                icon:         Icon(Icons.campaign_outlined),
+                icon: Icon(Icons.campaign_outlined),
                 selectedIcon: Icon(Icons.campaign_rounded),
                 label: 'NEWS',
               ),
               NavigationDestination(
-                icon:         Icon(Icons.map_outlined),
+                icon: Icon(Icons.map_outlined),
                 selectedIcon: Icon(Icons.map_rounded),
                 label: 'EVENTS',
               ),
               NavigationDestination(
-                icon:         Icon(Icons.person_outline_rounded),
+                icon: Icon(Icons.person_outline_rounded),
                 selectedIcon: Icon(Icons.person_rounded),
                 label: 'PROFILE',
               ),

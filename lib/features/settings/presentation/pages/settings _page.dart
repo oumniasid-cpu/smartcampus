@@ -2,8 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import '../../../../core/l10n/app_localization.dart';
+import 'package:smartcampus/l10n/app_localizations.dart';
 import '../bloc/settings_bloc.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -37,7 +36,7 @@ class SettingsPage extends StatelessWidget {
           final notifOn = state.notificationsEnabled;
 
           return Directionality(
-            textDirection: l10n.textDirection,
+            textDirection: TextDirection.ltr,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [

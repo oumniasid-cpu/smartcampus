@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:smartcampus/l10n/app_localizations.dart';
 import '../../../../core/di/injection.dart';
 import '../../../announcements/presentation/bloc/announcement_bloc.dart';
-
+import 'package:firebase_auth/firebase_auth.dart';
 // ── UI-only data models ────────────────────────────────────────────────────
 class _ScheduleItem {
   final String time;
@@ -211,15 +211,14 @@ class _HomeBody extends StatelessWidget {
             height: 1.1,
           ),
         ),
-        const Text(
-          // NOTE : prénom dynamique → viendra de Firebase (UserProfile.displayName)
-          'Alex.',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            height: 1.2,
-          ),
-        ),
+        Text(
+  '${FirebaseAuth.instance.currentUser?.displayName ?? FirebaseAuth.instance.currentUser?.email?.split('@').first ?? 'Student'}.',
+  style: const TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w800,
+    height: 1.2,
+  ),
+),
       ],
     );
   }
