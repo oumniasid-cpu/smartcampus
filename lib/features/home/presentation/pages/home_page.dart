@@ -59,7 +59,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) =>
-          getIt<AnnouncementsBloc>()..add(AnnouncementsLoadRequested()),
+          getIt<AnnouncementsBloc>()..add(AnnouncementsWatchRequested()),
       child: _HomeScaffold(schedule: _schedule),
     );
   }
@@ -150,14 +150,14 @@ class _HomeBody extends StatelessWidget {
 
     return BlocBuilder<AnnouncementsBloc, AnnouncementsState>(
       builder: (context, state) {
-        final isOffline = state is AnnouncementsLoaded && state.isOffline;
+        final isOffline = false;
 
         return RefreshIndicator(
           color: cs.primary,
           onRefresh: () async {
             context
                 .read<AnnouncementsBloc>()
-                .add(AnnouncementsLoadRequested(forceRefresh: true));
+               .add(AnnouncementsWatchRequested());
             await Future.delayed(const Duration(milliseconds: 600));
           },
           child: ListView(
@@ -173,7 +173,7 @@ class _HomeBody extends StatelessWidget {
                       _OfflineBanner(
                         onRetry: () => context
                             .read<AnnouncementsBloc>()
-                            .add(AnnouncementsLoadRequested(forceRefresh: true)),
+                           .add(AnnouncementsWatchRequested()),
                       ),
                       const SizedBox(height: 16),
                     ],

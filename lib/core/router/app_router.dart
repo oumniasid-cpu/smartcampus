@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,9 +7,10 @@ import '../../core/di/injection.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/announcements/presentation/pages/announcement_page.dart';
+import '../../features/announcements/presentation/pages/admin_announcements_page.dart';
 import '../../features/events/presentation/pages/event_page.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
-import '../../features/settings/presentation/pages/settings _page.dart'; // keep space if file has space
+import '../../features/settings/presentation/pages/settings_page.dart';
 
 abstract class AppRoutes {
   static const login         = '/login';
@@ -16,17 +18,35 @@ abstract class AppRoutes {
   static const announcements = '/announcements';
   static const events        = '/events';
   static const settings      = '/settings';
+  static const admin         = '/admin'; // ✅ NOUVEAU
 }
 
 class AppRouter {
+  static final _routerNotifier = _AuthNotifier();
+
   static final router = GoRouter(
     initialLocation: AppRoutes.login,
     debugLogDiagnostics: false,
+    refreshListenable: _routerNotifier,
+    redirect: (context, state) {
+      final isLoggedIn = _routerNotifier.isLoggedIn;
+      final isOnLogin  = state.matchedLocation == AppRoutes.login;
+
+      if (!isLoggedIn && !isOnLogin) return AppRoutes.login;
+      if (isLoggedIn && isOnLogin)   return AppRoutes.home;
+      return null;
+    },
     routes: [
       GoRoute(
         path: AppRoutes.login,
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: LoginPage()),
+      ),
+      // ✅ Route Admin — en dehors du ShellRoute (pas de navbar)
+      GoRoute(
+        path: AppRoutes.admin,
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: AdminAnnouncementsPage()),
       ),
       ShellRoute(
         builder: (context, state, child) => ScaffoldWithNav(child: child),
@@ -50,7 +70,8 @@ class AppRouter {
             path: AppRoutes.settings,
             pageBuilder: (context, state) => NoTransitionPage(
               child: BlocProvider(
-                create: (_) => getIt<SettingsBloc>(),
+                create: (_) =>
+                    getIt<SettingsBloc>()..add(SettingsLoadRequested()),
                 child: const SettingsPage(),
               ),
             ),
@@ -59,6 +80,17 @@ class AppRouter {
       ),
     ],
   );
+}
+
+class _AuthNotifier extends ChangeNotifier {
+  bool isLoggedIn = FirebaseAuth.instance.currentUser != null;
+
+  _AuthNotifier() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      isLoggedIn = user != null;
+      notifyListeners();
+    });
+  }
 }
 
 class ScaffoldWithNav extends StatelessWidget {
@@ -83,8 +115,8 @@ class ScaffoldWithNav extends StatelessWidget {
     final cs           = Theme.of(context).colorScheme;
     final isDark       = Theme.of(context).brightness == Brightness.dark;
 
-    final navBg           = isDark ? cs.surface       : Colors.white;
-    final selectedColor   = isDark ? cs.secondary     : _blueColor;
+    final navBg           = isDark ? cs.surface     : Colors.white;
+    final selectedColor   = isDark ? cs.secondary   : _blueColor;
     final unselectedColor = isDark
         ? cs.onSurface.withAlpha(100)
         : _navyColor.withAlpha(90);

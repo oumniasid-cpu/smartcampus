@@ -2,12 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../error/exceptions.dart';
+import '../error/exceptions.dart'; // ✅ correction ici
 
-/// Central Dio client with:
-/// - Auth token injection
-/// - Request/response logging (debug only)
-/// - Unified error mapping → [AppException]
 class ApiClient {
   ApiClient._();
 
@@ -32,25 +28,20 @@ class ApiClient {
   }
 }
 
-// ─── Auth Interceptor ────────────────────────────────────────────────────────
 class _AuthInterceptor extends Interceptor {
   final FlutterSecureStorage _storage;
   static const _tokenKey = 'auth_token';
-
   _AuthInterceptor(this._storage);
 
   @override
   Future<void> onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     final token = await _storage.read(key: _tokenKey);
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
-    }
+    if (token != null) options.headers['Authorization'] = 'Bearer $token';
     handler.next(options);
   }
 }
 
-// ─── Logging Interceptor (debug only) ───────────────────────────────────────
 class _LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -71,7 +62,6 @@ class _LoggingInterceptor extends Interceptor {
   }
 }
 
-// ─── Error Interceptor ───────────────────────────────────────────────────────
 class _ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
@@ -79,15 +69,15 @@ class _ErrorInterceptor extends Interceptor {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
-        handler.reject(_wrap(err, const NetworkException('Délai de connexion dépassé.')));
+        handler.reject(_wrap(err, NetworkException('Délai de connexion dépassé.')));
         return;
       case DioExceptionType.connectionError:
-        handler.reject(_wrap(err, const NetworkException('Pas de connexion réseau.')));
+        handler.reject(_wrap(err, NetworkException('Pas de connexion réseau.')));
         return;
       case DioExceptionType.badResponse:
         final code = err.response?.statusCode ?? 0;
         if (code == 401) {
-          handler.reject(_wrap(err, const AuthException('Session expirée. Reconnectez-vous.')));
+          handler.reject(_wrap(err, AuthException('Session expirée. Reconnectez-vous.')));
         } else if (code >= 500) {
           handler.reject(_wrap(err, ServerException('Erreur serveur ($code).')));
         } else {

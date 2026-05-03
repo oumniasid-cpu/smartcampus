@@ -5,7 +5,6 @@ import '../../../../l10n/app_localizations.dart';
 import '../bloc/announcement_bloc.dart';
 import '../../domain/entities/announcement.dart';
 
-// ── Static brand colors — intentionnellement fixes (design de marque)
 class _Brand {
   static const navyCard  = Color(0xFF0D1F3C);
   static const tealBg    = Color(0xFF0F3D3E);
@@ -22,11 +21,9 @@ class AnnouncementsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // BUG CORRIGÉ : l10n était déclarée ici mais jamais utilisée dans build()
-    // → supprimée, chaque widget enfant lit l10n lui-même.
     return BlocProvider(
       create: (_) =>
-          getIt<AnnouncementsBloc>()..add(AnnouncementsLoadRequested()),
+          getIt<AnnouncementsBloc>()..add(AnnouncementsWatchRequested()),
       child: const _NewsView(),
     );
   }
@@ -51,7 +48,7 @@ class _NewsViewState extends State<_NewsView> {
   @override
   Widget build(BuildContext context) {
     final cs   = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!; // ← NOUVEAU
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -73,7 +70,6 @@ class _NewsViewState extends State<_NewsView> {
     );
   }
 
-  // ── AppBar ────────────────────────────────────────────────────────────────
   PreferredSizeWidget _buildAppBar(ColorScheme cs, AppLocalizations l10n) {
     return AppBar(
       backgroundColor: cs.primary,
@@ -90,7 +86,7 @@ class _NewsViewState extends State<_NewsView> {
             child: Icon(Icons.school_outlined, color: cs.onPrimary, size: 18),
           ),
           const SizedBox(width: 10),
-          Text(l10n.appName, // ← était 'SmartCampus'
+          Text(l10n.appName,
               style: TextStyle(color: cs.onPrimary, fontSize: 17,
                   fontWeight: FontWeight.bold)),
         ],
@@ -118,16 +114,13 @@ class _NewsViewState extends State<_NewsView> {
     );
   }
 
-  // ── Content ───────────────────────────────────────────────────────────────
   Widget _buildContent(BuildContext context, ColorScheme cs,
       AppLocalizations l10n, List<Announcement> items) {
     return RefreshIndicator(
       color: cs.primary,
       onRefresh: () async {
-        context
-            .read<AnnouncementsBloc>()
-            .add(AnnouncementsLoadRequested(forceRefresh: true));
-        await Future.delayed(const Duration(milliseconds: 600));
+        context.read<AnnouncementsBloc>().add(AnnouncementsWatchRequested());
+        await Future.delayed(const Duration(milliseconds: 400));
       },
       child: ListView(
         padding: EdgeInsets.zero,
@@ -151,7 +144,7 @@ class _NewsViewState extends State<_NewsView> {
           ...List.generate(
             items.length > 2 ? items.length - 2 : 0,
             (i) {
-              final item   = items[i + 2];
+              final item    = items[i + 2];
               final isEvent = i % 3 == 2;
               return Column(
                 children: [
@@ -188,14 +181,13 @@ class _NewsViewState extends State<_NewsView> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
   Widget _buildHeader(ColorScheme cs, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.campusBulletin, // ← était 'CAMPUS BULLETIN'
+          Text(l10n.campusBulletin,
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
                   color: cs.secondary, letterSpacing: 1.2)),
           const SizedBox(height: 6),
@@ -204,9 +196,8 @@ class _NewsViewState extends State<_NewsView> {
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900,
                   color: cs.onSurface, height: 1.2),
               children: [
-                TextSpan(text: '${l10n.whatsHappening}\n'), // ← était "What's happening\n"
-                TextSpan(
-                    text: l10n.onCampus, // ← était 'on campus.'
+                TextSpan(text: '${l10n.whatsHappening}\n'),
+                TextSpan(text: l10n.onCampus,
                     style: TextStyle(color: cs.secondary)),
               ],
             ),
@@ -216,7 +207,6 @@ class _NewsViewState extends State<_NewsView> {
     );
   }
 
-  // ── Syncing state ─────────────────────────────────────────────────────────
   Widget _buildSyncingState(ColorScheme cs, AppLocalizations l10n) {
     return Center(
       child: Column(
@@ -225,13 +215,12 @@ class _NewsViewState extends State<_NewsView> {
           SizedBox(
             width: 48, height: 48,
             child: CircularProgressIndicator(
-              strokeWidth: 3,
-              color: cs.primary,
+              strokeWidth: 3, color: cs.primary,
               backgroundColor: cs.primaryContainer,
             ),
           ),
           const SizedBox(height: 16),
-          Text(l10n.syncingFeed, // ← était 'Syncing feed...'
+          Text(l10n.syncingFeed,
               style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500)),
         ],
@@ -239,7 +228,6 @@ class _NewsViewState extends State<_NewsView> {
     );
   }
 
-  // ── Error / Connection Lost state ─────────────────────────────────────────
   Widget _buildErrorState(BuildContext context, ColorScheme cs,
       AppLocalizations l10n) {
     return Center(
@@ -256,11 +244,11 @@ class _NewsViewState extends State<_NewsView> {
                 color: cs.onErrorContainer, size: 30),
           ),
           const SizedBox(height: 16),
-          Text(l10n.connectionLost, // ← était 'Connection Lost'
+          Text(l10n.connectionLost,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
                   color: cs.onSurface)),
           const SizedBox(height: 8),
-          Text(l10n.connectionLostDesc, // ← était "We couldn't reach..."
+          Text(l10n.connectionLostDesc,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant,
                   height: 1.5)),
@@ -268,9 +256,9 @@ class _NewsViewState extends State<_NewsView> {
           ElevatedButton.icon(
             onPressed: () => context
                 .read<AnnouncementsBloc>()
-                .add(AnnouncementsLoadRequested(forceRefresh: true)),
+                .add(AnnouncementsWatchRequested()),
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(l10n.retryBtn), // ← était 'Retry'
+            label: Text(l10n.retryBtn),
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
@@ -278,7 +266,6 @@ class _NewsViewState extends State<_NewsView> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
               elevation: 0,
-              textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -288,7 +275,7 @@ class _NewsViewState extends State<_NewsView> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Hero Card — dark intentionnel (design de marque)
+//  Hero Card
 // ═══════════════════════════════════════════════════════════════════════════
 class _HeroCard extends StatelessWidget {
   final Announcement announcement;
@@ -314,12 +301,6 @@ class _HeroCard extends StatelessWidget {
                   child: Opacity(opacity: 0.15,
                       child: Icon(Icons.eco_rounded,
                           size: 120, color: Colors.tealAccent)),
-                ),
-                Positioned(
-                  bottom: -10, left: -10,
-                  child: Opacity(opacity: 0.12,
-                      child: Icon(Icons.eco_rounded,
-                          size: 90, color: Colors.tealAccent)),
                 ),
                 const Center(
                   child: Text('Campus\nEvents',
@@ -368,7 +349,7 @@ class _HeroCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10)),
                     side: const BorderSide(color: Color(0xFF93B4FF), width: 0.5),
                   ),
-                  child: Text(l10n.readProtocol, // ← était 'Read Protocol'
+                  child: Text(l10n.readProtocol,
                       style: const TextStyle(fontSize: 14,
                           fontWeight: FontWeight.bold)),
                 ),
@@ -425,7 +406,7 @@ class _FeaturedYellowCard extends StatelessWidget {
             const SizedBox(height: 14),
             Row(
               children: [
-                Text(l10n.sevenDaysLeft, // ← était '7 Days Left'
+                Text(l10n.sevenDaysLeft,
                     style: const TextStyle(fontSize: 14,
                         fontWeight: FontWeight.w800, color: Color(0xFF0A1931))),
                 const Spacer(),
@@ -470,10 +451,14 @@ class _TextNewsCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const _CategoryPill(label: 'ACADEMIC'),
-                Text('2h ago',
-                    style: TextStyle(fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                        fontWeight: FontWeight.w500)),
+                Text(
+                  announcement.createdAt != null
+                      ? _timeAgo(announcement.createdAt!)
+                      : '',
+                  style: TextStyle(fontSize: 12,
+                      color: cs.onSurfaceVariant,
+                      fontWeight: FontWeight.w500),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -499,6 +484,13 @@ class _TextNewsCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}min ago';
+    if (diff.inHours < 24)   return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }
 
@@ -544,7 +536,7 @@ class _EventCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(l10n.event, // ← était 'EVENT'
+                      Text(l10n.event,
                           style: TextStyle(fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: cs.secondary, letterSpacing: 0.5)),
@@ -554,7 +546,7 @@ class _EventCard extends StatelessWidget {
                               color: cs.onSurfaceVariant,
                               shape: BoxShape.circle)),
                       const SizedBox(width: 6),
-                      Text(l10n.today, // ← était 'Today'
+                      Text(l10n.today,
                           style: TextStyle(fontSize: 10,
                               color: cs.onSurfaceVariant,
                               fontWeight: FontWeight.w500)),
@@ -567,7 +559,7 @@ class _EventCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: cs.onSurface, height: 1.25)),
                   const SizedBox(height: 4),
-                  Text('Grand Hall, 10:00 AM ...',
+                  Text('by ${announcement.authorName}',
                       style: TextStyle(fontSize: 12,
                           color: cs.onSurfaceVariant)),
                 ],
@@ -611,11 +603,11 @@ class _NewsletterCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.weeklyScholar, // ← était 'The Weekly Scholar'
+          Text(l10n.weeklyScholar,
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800,
                   color: cs.onPrimaryContainer, height: 1.2)),
           const SizedBox(height: 6),
-          Text(l10n.weeklyScholarDesc, // ← était 'Subscribe to get...'
+          Text(l10n.weeklyScholarDesc,
               style: TextStyle(fontSize: 13,
                   color: cs.onPrimaryContainer.withOpacity(0.8), height: 1.5)),
           const SizedBox(height: 16),
@@ -635,11 +627,12 @@ class _NewsletterCard extends StatelessWidget {
                     textAlignVertical: TextAlignVertical.center,
                     style: TextStyle(fontSize: 14, color: cs.onSurface),
                     decoration: InputDecoration(
-                      hintText: l10n.emailHint, // ← était 'Email'
+                      hintText: l10n.emailHint,
                       hintStyle: TextStyle(color: cs.onSurfaceVariant,
                           fontSize: 14),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 14),
                       isCollapsed: false,
                       isDense: true,
                     ),
@@ -667,7 +660,7 @@ class _NewsletterCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Reusable small widgets
+//  Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 class _Tag extends StatelessWidget {
   final String label;
@@ -726,9 +719,6 @@ class _ActionIcon extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  Navigation + Detail page
-// ═══════════════════════════════════════════════════════════════════════════
 void _navigateToDetail(BuildContext context, Announcement announcement) {
   Navigator.of(context).push(
     MaterialPageRoute(
@@ -743,7 +733,7 @@ class _AnnouncementDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs   = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -773,14 +763,21 @@ class _AnnouncementDetailPage extends StatelessWidget {
               children: [
                 const _CategoryPill(label: 'ACADEMIC'),
                 const SizedBox(width: 8),
-                Text('2h ago',
-                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                if (announcement.createdAt != null)
+                  Text(
+                    '${announcement.createdAt!.day}/${announcement.createdAt!.month}/${announcement.createdAt!.year}',
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
             Text(announcement.title,
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
                     color: cs.onSurface, height: 1.2)),
+            const SizedBox(height: 8),
+            Text('Par ${announcement.authorName}',
+                style: TextStyle(fontSize: 13, color: cs.secondary,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
             Divider(color: cs.surfaceContainerHighest),
             const SizedBox(height: 16),
