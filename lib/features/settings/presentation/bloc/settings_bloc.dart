@@ -2,20 +2,15 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-// AJOUT : imports Firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'user_profile_service.dart'; // adapte le chemin selon ton projet
+import 'user_profile_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Keys SharedPreferences (inchangés)
-// ─────────────────────────────────────────────────────────────────────────────
-const _kThemeMode    = 'theme_mode';
-const _kLanguage     = 'language';
+const _kThemeMode     = 'theme_mode';
+const _kLanguage      = 'language';
 const _kNotifications = 'notifications_enabled';
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Events — on ajoute ProfileLoaded et SignOutRequested
+//  Events
 // ─────────────────────────────────────────────────────────────────────────────
 abstract class SettingsEvent extends Equatable {
   @override
@@ -40,7 +35,6 @@ class SettingsLanguageChanged extends SettingsEvent {
 
 class SettingsNotificationsToggled extends SettingsEvent {}
 
-// NOUVEAU : déclenché quand le profil Firestore est reçu
 class SettingsProfileLoaded extends SettingsEvent {
   final UserProfile profile;
   SettingsProfileLoaded(this.profile);
@@ -48,24 +42,20 @@ class SettingsProfileLoaded extends SettingsEvent {
   List<Object?> get props => [profile];
 }
 
-// NOUVEAU : l'utilisateur appuie sur "Se déconnecter"
 class SettingsSignOutRequested extends SettingsEvent {}
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  State — on ajoute les champs du profil et isSignedOut
+//  State — isSignedOut SUPPRIMÉ
 // ─────────────────────────────────────────────────────────────────────────────
 class SettingsState extends Equatable {
   final ThemeMode themeMode;
   final String languageCode;
   final bool notificationsEnabled;
-
-  // NOUVEAU : données du profil Firebase
   final String displayName;
   final String email;
   final String role;
   final List<String> badges;
   final bool isLoadingProfile;
-  final bool isSignedOut; // true → l'app doit naviguer vers LoginPage
 
   const SettingsState({
     this.themeMode = ThemeMode.system,
@@ -76,7 +66,6 @@ class SettingsState extends Equatable {
     this.role = 'student',
     this.badges = const [],
     this.isLoadingProfile = true,
-    this.isSignedOut = false,
   });
 
   SettingsState copyWith({
@@ -88,7 +77,6 @@ class SettingsState extends Equatable {
     String? role,
     List<String>? badges,
     bool? isLoadingProfile,
-    bool? isSignedOut,
   }) =>
       SettingsState(
         themeMode: themeMode ?? this.themeMode,
@@ -99,29 +87,26 @@ class SettingsState extends Equatable {
         role: role ?? this.role,
         badges: badges ?? this.badges,
         isLoadingProfile: isLoadingProfile ?? this.isLoadingProfile,
-        isSignedOut: isSignedOut ?? this.isSignedOut,
       );
 
   @override
   List<Object?> get props => [
-    themeMode,
-    languageCode,
-    notificationsEnabled,
-    displayName,
-    email,
-    role,
-    badges,
-    isLoadingProfile,
-    isSignedOut,
-  ];
+        themeMode,
+        languageCode,
+        notificationsEnabled,
+        displayName,
+        email,
+        role,
+        badges,
+        isLoadingProfile,
+      ];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  BLoC — on ajoute la lecture Firebase et la déconnexion
+//  BLoC
 // ─────────────────────────────────────────────────────────────────────────────
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final SharedPreferences prefs;
-  // NOUVEAU : le service Firebase
   final UserProfileService _profileService = UserProfileService();
 
   SettingsBloc({required this.prefs}) : super(const SettingsState()) {
@@ -129,7 +114,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<SettingsThemeChanged>(_onThemeChanged);
     on<SettingsLanguageChanged>(_onLanguageChanged);
     on<SettingsNotificationsToggled>(_onNotificationsToggled);
-    // NOUVEAU
     on<SettingsProfileLoaded>(_onProfileLoaded);
     on<SettingsSignOutRequested>(_onSignOut);
   }
@@ -137,7 +121,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   // ── Chargement initial ───────────────────────────────────────────────────
   Future<void> _onLoad(
       SettingsLoadRequested event, Emitter<SettingsState> emit) async {
-    // 1. Restaurer les préférences locales (comme avant)
     final themeIndex = prefs.getInt(_kThemeMode) ?? ThemeMode.system.index;
     emit(state.copyWith(
       themeMode: ThemeMode.values[themeIndex],
@@ -146,12 +129,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       isLoadingProfile: true,
     ));
 
-    // 2. NOUVEAU : charger le profil depuis Firestore
     final uid = _profileService.currentUser?.uid;
-    if (uid == null) return; // pas connecté
+    if (uid == null) return;
 
-    // On écoute le profil en temps réel grâce à emit.forEach
-    // → chaque fois que Firestore change, le BLoC émet un nouvel état
     await emit.forEach<UserProfile?>(
       _profileService.watchProfile(uid),
       onData: (profile) {
@@ -174,13 +154,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     await prefs.setInt(_kThemeMode, event.themeMode.index);
     emit(state.copyWith(themeMode: event.themeMode));
 
-    // NOUVEAU : synchroniser aussi dans Firestore (optionnel mais recommandé)
     final uid = _profileService.currentUser?.uid;
     if (uid != null) {
       FirebaseFirestore.instance.collection('user_settings').doc(uid).set({
-        'theme': event.themeMode.name, // 'system', 'light', ou 'dark'
+        'theme': event.themeMode.name,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)); // merge:true = ne pas écraser les autres champs
+      }, SetOptions(merge: true));
     }
   }
 
@@ -190,7 +169,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     await prefs.setString(_kLanguage, event.languageCode);
     emit(state.copyWith(languageCode: event.languageCode));
 
-    // NOUVEAU : synchroniser dans Firestore
     final uid = _profileService.currentUser?.uid;
     if (uid != null) {
       FirebaseFirestore.instance.collection('user_settings').doc(uid).set({
@@ -207,7 +185,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     await prefs.setBool(_kNotifications, newValue);
     emit(state.copyWith(notificationsEnabled: newValue));
 
-    // NOUVEAU : synchroniser dans Firestore
     final uid = _profileService.currentUser?.uid;
     if (uid != null) {
       FirebaseFirestore.instance.collection('user_settings').doc(uid).set({
@@ -217,7 +194,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     }
   }
 
-  // ── Profil reçu de Firebase ──────────────────────────────────────────────
+  // ── Profil reçu ──────────────────────────────────────────────────────────
   void _onProfileLoaded(
       SettingsProfileLoaded event, Emitter<SettingsState> emit) {
     emit(state.copyWith(
@@ -229,11 +206,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ));
   }
 
-  // ── Déconnexion ──────────────────────────────────────────────────────────
+  // ── Déconnexion — appelle UNIQUEMENT FirebaseAuth.signOut() ──────────────
+  // GoRouter (_AuthNotifier) détecte le changement et redirige vers /login
+  // automatiquement. Pas besoin d'émettre un état ou de naviguer ici.
   Future<void> _onSignOut(
       SettingsSignOutRequested event, Emitter<SettingsState> emit) async {
     await _profileService.signOut();
-    emit(state.copyWith(isSignedOut: true));
-    // Dans SettingsPage, écoute isSignedOut et navigue vers LoginPage
   }
 }

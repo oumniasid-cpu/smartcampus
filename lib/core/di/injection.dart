@@ -5,88 +5,101 @@ import 'package:get_it/get_it.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+// Auth
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+
+// Announcements
 import '../../features/announcements/data/datasources/announcement_local_datasource.dart';
 import '../../features/announcements/data/datasources/announcement_remote_datasource.dart';
 import '../../features/announcements/data/repositories/announcement_repository_impl.dart';
 import '../../features/announcements/domain/repositories/announcement_repository.dart';
-import '../../features/announcements/domain/usecases/get_announcement.dart';
 import '../../features/announcements/presentation/bloc/announcement_bloc.dart';
+
+// Events
 import '../../features/events/data/datasources/event_local_datasource.dart';
 import '../../features/events/data/datasources/event_remote_datasource.dart';
 import '../../features/events/data/repositories/event_repository_impl.dart';
 import '../../features/events/domain/repositories/event_repository.dart';
 import '../../features/events/domain/usecases/events_usecases.dart';
 import '../../features/events/presentation/bloc/events_bloc.dart';
+
+// Settings & Timetable
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/timetable/data/datasources/timetable_local_datasource.dart';
-import '../../features/timetable/domain/timetable_repository.dart';
+
 import '../network/api_client.dart';
 import '../network/network_info.dart';
- 
+
 final getIt = GetIt.instance;
- 
+
 Future<void> configureDependencies() async {
+  // ── Core & External ────────────────────────────────────────────────────────
   final prefs = await SharedPreferences.getInstance();
   const secureStorage = FlutterSecureStorage();
-  getIt.registerLazySingleton(() => prefs);
-  getIt.registerLazySingleton(() => secureStorage);
-  getIt.registerLazySingleton(() => Connectivity());
- 
+
+  getIt.registerLazySingleton<SharedPreferences>(() => prefs);
+  getIt.registerLazySingleton<FlutterSecureStorage>(() => secureStorage);
+  getIt.registerLazySingleton<Connectivity>(() => Connectivity());
+
   final db = await _initDatabase();
-  getIt.registerLazySingleton(() => db);
- 
-  getIt.registerLazySingleton<Dio>(() =>
-      ApiClient.create(secureStorage: secureStorage));
- 
+  getIt.registerLazySingleton<Database>(() => db);
+
+  getIt.registerLazySingleton<Dio>(
+      () => ApiClient.create(secureStorage: getIt()));
   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(getIt()));
- 
-  // Announcements
-  getIt.registerLazySingleton<AnnouncementsRemoteDataSource>(
-      () => AnnouncementsRemoteDataSourceImpl(getIt()));
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
+  getIt.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(getIt<FirebaseAuth>()),
+  );
+  getIt.registerFactory(() => AuthBloc(getIt<AuthRepository>()));
+
+  // ── Announcements (Firestore) ──────────────────────────────────────────────
+  // Les datasources locales/REST sont désactivées — on garde juste les stubs
   getIt.registerLazySingleton<AnnouncementsLocalDataSource>(
-      () => AnnouncementsLocalDataSourceImpl(getIt()));
+    () => AnnouncementsLocalDataSourceImpl(getIt<Database>()),
+  );
+  getIt.registerLazySingleton<AnnouncementsRemoteDataSource>(
+    () => AnnouncementsRemoteDataSourceImpl(getIt<Dio>()),
+  );
+  // ✅ Nouveau repo Firestore — pas de remoteDataSource/localDataSource
   getIt.registerLazySingleton<AnnouncementsRepository>(
-      () => AnnouncementsRepositoryImpl(
-            remoteDataSource: getIt(),
-            localDataSource: getIt(),
-            networkInfo: getIt(),
-          ));
-  getIt.registerLazySingleton(() => GetAnnouncements(getIt()));
-  getIt.registerFactory(() => AnnouncementsBloc(getAnnouncements: getIt()));
- 
-  // Events
+    () => AnnouncementsRepositoryImpl(),
+  );
+  getIt.registerFactory<AnnouncementsBloc>(
+    () => AnnouncementsBloc(repository: getIt<AnnouncementsRepository>()),
+  );
+
+  // ── Events ─────────────────────────────────────────────────────────────────
   getIt.registerLazySingleton<EventsRemoteDataSource>(
       () => EventsRemoteDataSourceImpl(getIt()));
   getIt.registerLazySingleton<EventsLocalDataSource>(
       () => EventsLocalDataSourceImpl(getIt()));
-  getIt.registerLazySingleton<EventsRepository>(
-      () => EventsRepositoryImpl(
-            remoteDataSource: getIt(),
-            localDataSource: getIt(),
-            networkInfo: getIt(),
-          ));
+  getIt.registerLazySingleton<EventsRepository>(() => EventsRepositoryImpl(
+        remoteDataSource: getIt(),
+        localDataSource: getIt(),
+        networkInfo: getIt(),
+      ));
   getIt.registerLazySingleton(() => GetEvents(getIt()));
   getIt.registerLazySingleton(() => GetEventById(getIt()));
   getIt.registerLazySingleton(() => AttachPhoto(getIt()));
-  getIt.registerFactory(() => EventsBloc(
-        getEvents: getIt(),
-        attachPhoto: getIt(),
-      ));
- 
-  // Timetable
+  getIt.registerFactory(
+      () => EventsBloc(getEvents: getIt(), attachPhoto: getIt()));
+
+  // ── Timetable ──────────────────────────────────────────────────────────────
   getIt.registerLazySingleton<TimetableLocalDataSource>(
       () => TimetableLocalDataSourceImpl(getIt()));
-  getIt.registerLazySingleton<TimetableRepository>(
-      () => TimetableRepositoryImpl(localDataSource: getIt()));
-  getIt.registerLazySingleton(() => GetTimetable(getIt()));
-  getIt.registerLazySingleton(() => GetTimetableForDay(getIt()));
-  getIt.registerLazySingleton(() => ExportTimetableJson(getIt()));
- 
-  // Settings
-  getIt.registerFactory(() => SettingsBloc(prefs: getIt()));
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  getIt.registerFactory(
+      () => SettingsBloc(prefs: getIt<SharedPreferences>()));
 }
- 
+
 Future<Database> _initDatabase() async {
   final dbPath = await getDatabasesPath();
   return openDatabase(
@@ -98,7 +111,7 @@ Future<Database> _initDatabase() async {
     },
   );
 }
- 
+
 Future<void> _createTables(Database db) async {
   await db.execute('''CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL,

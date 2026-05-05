@@ -1,43 +1,37 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/announcement.dart';
- 
+
 class AnnouncementModel extends Announcement {
   const AnnouncementModel({
     required super.id,
     required super.title,
     required super.body,
-    required super.userId,
+    super.authorId,
+    super.authorName,
+    super.createdAt,
+    super.updatedAt,
   });
- 
-  factory AnnouncementModel.fromJson(Map<String, dynamic> json) {
+
+  // ── Depuis un document Firestore ─────────────────────────────────────────
+  factory AnnouncementModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return AnnouncementModel(
-      id: json['id'] as int,
-      title: json['title'] as String,
-      body: json['body'] as String,
-      userId: json['userId'] as int,
+      id:         doc.id,
+      title:      data['title']      as String? ?? '',
+      body:       data['body']       as String? ?? '',
+      authorId:   data['authorId']   as String? ?? '',
+      authorName: data['authorName'] as String? ?? 'Admin',
+      createdAt:  (data['createdAt'] as Timestamp?)?.toDate(),
+      updatedAt:  (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
- 
-  factory AnnouncementModel.fromMap(Map<String, dynamic> map) {
-    return AnnouncementModel(
-      id: map['id'] as int,
-      title: map['title'] as String,
-      body: map['body'] as String,
-      userId: map['userId'] as int,
-    );
-  }
- 
-  Map<String, dynamic> toMap({required int cachedAt}) => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'userId': userId,
-        'cachedAt': cachedAt,
-      };
- 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'userId': userId,
-      };
+
+  // ── Vers Firestore (pour create/update) ──────────────────────────────────
+  Map<String, dynamic> toFirestore() => {
+    'title':      title,
+    'body':       body,
+    'authorId':   authorId,
+    'authorName': authorName,
+    'updatedAt':  FieldValue.serverTimestamp(),
+  };
 }

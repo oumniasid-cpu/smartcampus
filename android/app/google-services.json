@@ -1,13 +1,32 @@
 {
   "project_info": {
-    "project_number": "508761671110",
-    "project_id": "smartcampus-842a0",
-    "storage_bucket": "smartcampus-842a0.firebasestorage.app"
+    "project_number": "988040395700",
+    "project_id": "smartcampus-97c86",
+    "storage_bucket": "smartcampus-97c86.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:508761671110:android:27d7e7c2a2816dd7251ec7",
+        "mobilesdk_app_id": "1:988040395700:android:762605bbbfa7f2df8950e1",
+        "android_client_info": {
+          "package_name": "com.example.smartcampus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDOaDu4ySJT0N0Ets0e9rLF_Cmq9LOuo6I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:988040395700:android:4e569e4901760d718950e1",
         "android_client_info": {
           "package_name": "com.example.smartcampus2"
         }
@@ -15,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCABm9wVlkPnDGUjbGuMKiU5I5d-0SHONg"
+          "current_key": "AIzaSyDOaDu4ySJT0N0Ets0e9rLF_Cmq9LOuo6I"
         }
       ],
       "services": {

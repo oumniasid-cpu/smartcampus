@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import 'package:cloud_firestore/cloud_firestore.dart';
+>>>>>>> 55257309b465a51d2e8d452d68d4bde3a6c546eb
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

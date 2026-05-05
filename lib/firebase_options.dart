@@ -32,48 +32,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'smartcampus-842a0',
-    authDomain: 'smartcampus-842a0.firebaseapp.com',
-    storageBucket: 'smartcampus-842a0.firebasestorage.app',
-    measurementId: 'YOUR_MEASUREMENT_ID',
+    apiKey: 'AIzaSyD4_vzlZHL4Hv-sdNRsk-YesYnGiIOGmDc',
+    appId: '1:988040395700:web:2d87339c50d3ba498950e1',
+    messagingSenderId: '988040395700',
+    projectId: 'smartcampus-97c86',
+    authDomain: 'smartcampus-97c86.firebaseapp.com',
+    storageBucket: 'smartcampus-97c86.firebasestorage.app',
+    measurementId: 'G-MHX7PF5GT4',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'smartcampus-842a0',
-    storageBucket: 'smartcampus-842a0.firebasestorage.app',
+    apiKey: 'AIzaSyDOaDu4ySJT0N0Ets0e9rLF_Cmq9LOuo6I',
+    appId: '1:988040395700:android:4e569e4901760d718950e1',
+    messagingSenderId: '988040395700',
+    projectId: 'smartcampus-97c86',
+    storageBucket: 'smartcampus-97c86.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'smartcampus-842a0',
-    storageBucket: 'smartcampus-842a0.firebasestorage.app',
+    apiKey: 'AIzaSyDOyH0IpDGvmfmTy3buwYdkTdI_3ZAXIRc',
+    appId: '1:988040395700:ios:af39aab05b0963a08950e1',
+    messagingSenderId: '988040395700',
+    projectId: 'smartcampus-97c86',
+    storageBucket: 'smartcampus-97c86.firebasestorage.app',
     iosBundleId: 'com.example.smartcampus2',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'YOUR_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'smartcampus-842a0',
-    storageBucket: 'smartcampus-842a0.firebasestorage.app',
+    apiKey: 'AIzaSyDOyH0IpDGvmfmTy3buwYdkTdI_3ZAXIRc',
+    appId: '1:988040395700:ios:af39aab05b0963a08950e1',
+    messagingSenderId: '988040395700',
+    projectId: 'smartcampus-97c86',
+    storageBucket: 'smartcampus-97c86.firebasestorage.app',
     iosBundleId: 'com.example.smartcampus2',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'YOUR_KEY',
-    appId: 'YOUR_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'smartcampus-842a0',
-    authDomain: 'smartcampus-842a0.firebaseapp.com',
-    storageBucket: 'smartcampus-842a0.firebasestorage.app',
-    measurementId: 'YOUR_MEASUREMENT_ID',
+    apiKey: 'AIzaSyD4_vzlZHL4Hv-sdNRsk-YesYnGiIOGmDc',
+    appId: '1:988040395700:web:e3e76a755532da988950e1',
+    messagingSenderId: '988040395700',
+    projectId: 'smartcampus-97c86',
+    authDomain: 'smartcampus-97c86.firebaseapp.com',
+    storageBucket: 'smartcampus-97c86.firebasestorage.app',
+    measurementId: 'G-G80ERD3T6J',
   );
+
 }
